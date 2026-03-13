@@ -3,6 +3,8 @@ mod app;
 mod img;
 mod ui;
 
+// in retrospect sshgoon would be a funnier name. oh well. the only remnant you're getting of that name is this niche code comment. and this commit.
+// look at this nerd reading the source code. would you really not trust ME! 
 use std::io;
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
