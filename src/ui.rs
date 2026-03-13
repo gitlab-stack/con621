@@ -1,6 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 use crate::app::{App, Screen, InputTarget};
+use crate::img;
 
 pub fn draw(f: &mut ratatui::Frame, app: &App) {
     match app.screen {
@@ -128,9 +129,10 @@ fn draw_results(f: &mut ratatui::Frame, app: &App) {
             .border_style(Style::default().fg(Color::Cyan)));
     f.render_widget(list, chunks[0]);
 
-    let help = " j/k:nav | Enter:detail | o:browser | d:download | n/p:page | q:back | ?:help ";
+    let img_hint = if app.show_image { "i:hide preview" } else { "i:preview" };
+    let help = format!(" j/k:nav | Enter:detail | {img_hint} | o:browser | d:download | n/p:page | q:back | ?:help ");
     let status_line = if app.status_msg.is_empty() {
-        help.to_string()
+        help
     } else {
         format!("{} | {}", app.status_msg, help)
     };
@@ -144,10 +146,30 @@ fn draw_detail(f: &mut ratatui::Frame, app: &App) {
         return;
     };
 
-    let chunks = Layout::vertical([
+    let outer = Layout::vertical([
         Constraint::Min(1),
         Constraint::Length(1),
     ]).split(f.area());
+
+    // If image preview is on, split the main area horizontally
+    let chunks: Vec<ratatui::layout::Rect>;
+    if app.show_image {
+        let split = Layout::horizontal([
+            Constraint::Percentage(40),
+            Constraint::Percentage(60),
+        ]).split(outer[0]);
+
+        // Draw image in left pane
+        if let Some((cached_id, ref lines)) = app.image_cache {
+            if cached_id == post.id {
+                img::draw_preview(f, split[0], lines);
+            }
+        }
+
+        chunks = vec![split[1], outer[1]];
+    } else {
+        chunks = vec![outer[0], outer[1]];
+    }
 
     let rating_str = match post.rating.as_str() {
         "s" => "Safe",
@@ -212,7 +234,8 @@ fn draw_detail(f: &mut ratatui::Frame, app: &App) {
             .border_style(Style::default().fg(Color::Cyan)));
     f.render_widget(detail, chunks[0]);
 
-    let status = Paragraph::new(" j/k:scroll | h/l:prev/next | o:browser | d:download | q:back | ?:help ")
+    let img_hint = if app.show_image { "i:hide preview" } else { "i:preview" };
+    let status = Paragraph::new(format!(" j/k:scroll | h/l:prev/next | {img_hint} | o:browser | d:download | q:back | ?:help "))
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(status, chunks[1]);
 }
@@ -231,6 +254,7 @@ fn draw_help(f: &mut ratatui::Frame, _app: &App) {
         "  Results Screen:",
         "    j/k, Up/Dn - Navigate posts",
         "    Enter      - View post details",
+        "    i          - Toggle image preview",
         "    o          - Open in browser",
         "    d          - Download file",
         "    n/p        - Next/prev page",
@@ -239,6 +263,7 @@ fn draw_help(f: &mut ratatui::Frame, _app: &App) {
         "  Detail Screen:",
         "    j/k        - Scroll up/down",
         "    h/l        - Previous/next post",
+        "    i          - Toggle image preview",
         "    o          - Open in browser",
         "    d          - Download file",
         "    q/Esc      - Back to results",

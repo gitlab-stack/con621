@@ -1,4 +1,6 @@
 use crate::api::{self, Post};
+use crate::img;
+use ratatui::prelude::*;
 
 #[derive(Clone, PartialEq)]
 pub enum Screen {
@@ -34,6 +36,10 @@ pub struct App {
     pub page: u32,
     pub detail_scroll: u16,
 
+    // image preview
+    pub show_image: bool,
+    pub image_cache: Option<(u64, Vec<Line<'static>>)>, // (post_id, rendered lines)
+
     // status
     pub status_msg: String,
     pub loading: bool,
@@ -55,6 +61,8 @@ impl App {
             selected: 0,
             page: 1,
             detail_scroll: 0,
+            show_image: false,
+            image_cache: None,
             status_msg: String::new(),
             loading: false,
         }
@@ -134,6 +142,42 @@ impl App {
                 self.status_msg = format!("Failed to open browser: {e}");
             } else {
                 self.status_msg = format!("Opened post #{}", post.id);
+            }
+        }
+    }
+
+    pub fn toggle_image(&mut self) {
+        self.show_image = !self.show_image;
+        if self.show_image {
+            self.load_image_for_current();
+        }
+    }
+
+    pub fn load_image_for_current(&mut self) {
+        let Some(post) = self.current_post() else { return };
+        // Skip if already cached for this post
+        if let Some((cached_id, _)) = &self.image_cache {
+            if *cached_id == post.id {
+                return;
+            }
+        }
+        let post_id = post.id;
+        // Use the preview URL (small image, fast to download)
+        let url = post.preview.url.as_deref()
+            .or(post.file.url.as_deref());
+        let Some(url) = url else {
+            self.status_msg = "No preview URL available".to_string();
+            return;
+        };
+        let url = url.to_string();
+        self.status_msg = "Loading preview...".to_string();
+        match img::fetch_and_render(&url, 80, 30) {
+            Ok(lines) => {
+                self.image_cache = Some((post_id, lines));
+                self.status_msg = format!("Preview loaded for #{post_id}");
+            }
+            Err(e) => {
+                self.status_msg = format!("Preview failed: {e}");
             }
         }
     }

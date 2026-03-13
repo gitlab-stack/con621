@@ -1,5 +1,6 @@
 mod api;
 mod app;
+mod img;
 mod ui;
 
 use std::io;
@@ -108,6 +109,7 @@ fn handle_results(app: &mut App, key: KeyCode) {
         KeyCode::Char('p') => app.prev_page(),
         KeyCode::Char('o') => app.open_in_browser(),
         KeyCode::Char('d') => app.download_current(),
+        KeyCode::Char('i') => app.toggle_image(),
         KeyCode::Char('?') => {
             app.prev_screen = app.screen.clone();
             app.screen = Screen::Help;
@@ -134,11 +136,14 @@ fn handle_detail(app: &mut App, key: KeyCode) {
         KeyCode::Left | KeyCode::Char('h') => {
             app.prev_post();
             app.detail_scroll = 0;
+            if app.show_image { app.load_image_for_current(); }
         }
         KeyCode::Right | KeyCode::Char('l') => {
             app.next_post();
             app.detail_scroll = 0;
+            if app.show_image { app.load_image_for_current(); }
         }
+        KeyCode::Char('i') => app.toggle_image(),
         KeyCode::Char('?') => {
             app.prev_screen = app.screen.clone();
             app.screen = Screen::Help;
